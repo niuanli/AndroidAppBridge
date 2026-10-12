@@ -1,0 +1,41 @@
+# Build outputs and local distributions
+bin/
+obj/
+release/
+distribution/
+portable/
+artifacts/
+platform-tools/
+*.zip
+*.pdb
+
+# Application backups and settings
+**/Backups/
+*.apk
+*.apks
+*.xapk
+*.obb
+backup.json
+language.txt
+
+# Diagnostic captures and local asset notes
+phone_diagnostic.png
+assets/ICON.md
+preview*.png
+progress-preview.png
+ui-*.png
+about-*.png
+*-test-result.txt
+ui-check-result.txt
+prepare_sources.py
+clean_sources.py
+
+# Editor and machine settings
+.vs/
+.idea/
+*.user
+*.suo
+.env
+.env.*
+Thumbs.db
+Desktop.ini
