@@ -1,4 +1,4 @@
-namespace AppBridge;
+namespace AndroidAppBridge.Presentation;
 
 /// <summary>Padded package search with a drawn magnifier, clear action and keyboard support.</summary>
 class SearchField : UserControl

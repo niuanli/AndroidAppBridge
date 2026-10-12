@@ -1,8 +1,5 @@
-using System.Diagnostics;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 
-namespace AppBridge;
+namespace AndroidAppBridge.Presentation;
 
 /// <summary>Coordinates the transfer workflow and keeps device operations off the UI thread.</summary>
 partial class BridgeForm : Form
@@ -22,7 +19,7 @@ partial class BridgeForm : Form
     readonly TransferProgress progress = new() { Dock = DockStyle.Fill, Style = ProgressBarStyle.Continuous, Visible = true };
     Button saveButton = null!, installButton = null!, launchButton = null!;
     bool transferCompleted;
-    bool english = LoadEnglish();
+    bool english;
     readonly Dictionary<Control, string> captions = new();
     readonly List<string> messages = new();
     readonly ComboBox language = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "Language / Язык" };
@@ -32,14 +29,21 @@ partial class BridgeForm : Form
     string? backupFolder;
     Backup? backup;
     CancellationTokenSource? work;
-    readonly string adb = Path.Combine(AppContext.BaseDirectory, "platform-tools", "adb.exe");
-    readonly string backupRoot = Path.Combine(AppContext.BaseDirectory, "Backups");
+    readonly TransferService service;
+    readonly ILocalPackageImporter importer;
+    readonly IUserPreferences preferences;
+    readonly IProgress<TransferUpdate> events;
 
-    public BridgeForm(bool previewOnly = false)
+    public BridgeForm(TransferService service, ILocalPackageImporter importer, IUserPreferences preferences, bool previewOnly = false)
     {
+        this.service = service;
+        this.importer = importer;
+        this.preferences = preferences;
+        english = preferences.English;
+        events = new DelegateProgress<TransferUpdate>(OnTransferUpdate);
         AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
-        Text = "AndroidAppBridge 0.3.2 — перенос Android-приложений";
+        Text = $"AndroidAppBridge {ReleaseInfo.Version} — перенос Android-приложений";
         Width = 1180;
         Height = 960;
         MinimumSize = new Size(1060, 940);
@@ -185,9 +189,18 @@ partial class BridgeForm : Form
         target.Dock = DockStyle.Fill;
         right.Controls.Add(target, 0, 2);
         right.Controls.Add(backupLabel, 0, 3);
-        var open = Action("Открыть сохранённую копию…", OpenBackup);
+        var importActions = Grid(2, 1);
+        importActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        importActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        importActions.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var open = Action("Открыть копию…", OpenBackup);
         open.Dock = DockStyle.Fill;
-        right.Controls.Add(open, 0, 4);
+        importActions.Controls.Add(open, 0, 0);
+        var import = Action("Импорт APK + OBB…", ImportPackage);
+        import.Name = "ImportButton";
+        import.Dock = DockStyle.Fill;
+        importActions.Controls.Add(import, 1, 0);
+        right.Controls.Add(importActions, 0, 4);
         var usbHelp = new Label
         {
             Dock = DockStyle.Fill,
@@ -312,21 +325,6 @@ partial class BridgeForm : Form
         SetLanguage(english, persist: false);
         UpdateActions();
     }
-    static bool LoadEnglish()
-    {
-        try
-        {
-            return File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "language.txt")).Trim() == "EN";
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
     string T(string text) => Localization.Text(text, english);
     void Detail(string text)
     {
@@ -363,12 +361,7 @@ partial class BridgeForm : Form
         log.Text = string.Join(Environment.NewLine, messages.Select(T)) + (messages.Count == 0 ? "" : Environment.NewLine);
         ResumeLayout(true);
         if (persist)
-            try
-            {
-                File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "language.txt"), english ? "EN" : "RU");
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            preferences.English = english;
     }
     public void ShowAbout(bool preview = false)
     {
@@ -380,7 +373,7 @@ partial class BridgeForm : Form
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        var title = Heading("AndroidAppBridge 0.3.2", 22);
+        var title = Heading("AndroidAppBridge " + ReleaseInfo.Version, 22);
         title.AutoSize = true;
         panel.Controls.Add(title, 0, 0);
         panel.Controls.Add(new Label { Text = (english ? "Developer: " : "Разработчик: ") + Localization.Author + "\r\n© 2026. " + (english ? "All rights reserved." : "Все права защищены."), Dock = DockStyle.Fill, Padding = new Padding(0, 8, 0, 0) }, 0, 1);
@@ -400,7 +393,7 @@ partial class BridgeForm : Form
             dialog.Opacity = 0;
             dialog.ShowInTaskbar = false;
             dialog.Show();
-            Application.DoEvents();
+            System.Windows.Forms.Application.DoEvents();
             using var bmp = new Bitmap(dialog.Width, dialog.Height);
             dialog.DrawToBitmap(bmp, new Rectangle(Point.Empty, dialog.Size));
             bmp.Save(Path.Combine(AppContext.BaseDirectory, english ? "about-en.png" : "about-ru.png"));
@@ -496,74 +489,25 @@ partial class BridgeForm : Form
         }
     }
     static string Explain(string message) => message + (message.Contains("INSTALL_FAILED_USER_RESTRICTED") ? "\r\nУстройство отклонило установку. Разблокируйте экран и подтвердите запрос установки. Проверьте «Установка через USB» (Install via USB) в настройках для разработчиков, если такой пункт есть, и ограничения установки в настройках безопасности. При наличии ограничений администратора обратитесь к нему. Ошибка не означает повреждение копии." : message.Contains("INSTALL_FAILED_NO_MATCHING_ABIS") ? "\r\nНужна сборка для архитектуры целевого устройства." : message.Contains("INSTALL_FAILED_DEPRECATED_SDK_VERSION") ? "\r\nAndroid блокирует слишком старый target SDK. Автоматическое изменение APK не выполняется." : message.Contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") ? "\r\nПодписи приложений различаются. Удаление существующего приложения удалит его данные; AppBridge не удаляет его автоматически." : message.Contains("INSTALL_FAILED_VERSION_DOWNGRADE") ? "\r\nНа устройстве более новая версия; понижение не выполняется." : message.Contains("unauthorized") ? "\r\nРазблокируйте устройство и подтвердите отладку по USB." : "");
-    /// <summary>Runs ADB with separate arguments, concurrent output reads and a bounded process lifetime.</summary>
-    async Task<string> Adb(string? serial, CancellationToken ct, params string[] args)
+    void OnTransferUpdate(TransferUpdate update)
     {
-        if (!File.Exists(adb))
-            throw new Exception("Нет platform-tools/adb.exe рядом с программой.");
-        var psi = new ProcessStartInfo(adb) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        if (serial != null)
+        if (IsDisposed || !IsHandleCreated)
+            return;
+        if (InvokeRequired)
         {
-            psi.ArgumentList.Add("-s");
-            psi.ArgumentList.Add(serial);
+            Invoke(() => OnTransferUpdate(update));
+            return;
         }
-        foreach (var a in args)
-            psi.ArgumentList.Add(a);
-        using var p = Process.Start(psi) ?? throw new Exception("Не удалось запустить ADB.");
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromMinutes(15));
-        using var reg = timeout.Token.Register(() => { try { if (!p.HasExited) p.Kill(true); } catch { } });
-        // Drain both streams before waiting so a full output buffer cannot deadlock the process.
-        var stdout = p.StandardOutput.ReadToEndAsync();
-        var stderr = p.StandardError.ReadToEndAsync();
-        await p.WaitForExitAsync(timeout.Token);
-        var output = (await stdout + "\n" + await stderr).Trim();
-        if (p.ExitCode != 0)
-            throw new Exception(output);
-        return output;
+        if (update.Kind == TransferUpdateKind.Log)
+            Write(update.Text);
+        else
+            Stage(update.Text, update.Detail, update.Percent);
     }
     Device Selected(ComboBox box) => box.SelectedItem is Device { State: "device" } d ? d : throw new Exception("Выберите подключённое устройство со статусом device. Для unauthorized подтвердите доступ на его экране.");
-    /// <summary>Measures bytes written locally and retries failed pulls without treating cancellation as a failure.</summary>
-    async Task<string> Pull(string serial, string remote, string local, CancellationToken ct)
-    {
-        var sizeText = await Adb(serial, ct, "shell", "stat", "-c", "%s", remote);
-        long.TryParse(sizeText.Trim(), out var total);
-        for (var attempt = 1; ; attempt++)
-        {
-            Stage("Копирование файла", Path.GetFileName(remote), total > 0 ? 0 : null);
-            using var timer = new System.Windows.Forms.Timer { Interval = 150 };
-            timer.Tick += (_, _) =>
-            {
-                try
-                {
-                    var size = File.Exists(local) ? new FileInfo(local).Length : 0;
-                    var value = total > 0 ? (int?)Math.Clamp(size * 100 / total, 0, 100) : null;
-                    Stage("Копирование файла", $"{Path.GetFileName(remote)}  •  {size / 1048576.0:F1} / {total / 1048576.0:F1} МБ", value);
-                }
-                catch (IOException) { }
-            };
-            timer.Start();
-            try
-            {
-                var output = await Adb(serial, ct, "pull", remote, local);
-                timer.Stop();
-                Stage("Файл скопирован", Path.GetFileName(remote), 100);
-                return output;
-            }
-            catch (Exception e) when (e is not OperationCanceledException && attempt < 3)
-            {
-                timer.Stop();
-                Stage("Повтор передачи", Path.GetFileName(remote));
-                Write($"Передача прервана: {e.Message}. Повтор {attempt}/2 через 2 секунды…");
-                await Task.Delay(2000, ct);
-            }
-        }
-    }
     async Task RefreshDevices(CancellationToken ct)
     {
         Stage("Поиск устройств", "Подтвердите отладку по USB на подключённом устройстве.");
-        var text = await Adb(null, ct, "devices", "-l");
-        var devices = text.Split('\n').Select(s => Regex.Match(s.Trim(), @"^(\S+)\s+(device|unauthorized|offline)\b(.*)$")).Where(m => m.Success).Select(m => new Device(m.Groups[1].Value, m.Groups[2].Value, Regex.Match(m.Groups[3].Value, @"model:(\S+)") is var model && model.Success ? model.Groups[1].Value.Replace('_', ' ') : "Android")).ToArray();
+        var devices = await service.GetDevicesAsync(ct);
         var oldSource = (source.SelectedItem as Device)?.Serial;
         var oldTarget = (target.SelectedItem as Device)?.Serial;
         source.Items.Clear();
@@ -581,8 +525,7 @@ partial class BridgeForm : Form
     {
         Stage("Загрузка списка приложений");
         var d = Selected(source);
-        var text = await Adb(d.Serial, ct, "shell", "pm", "list", "packages", "-3");
-        allPackages = text.Split('\n').Select(s => s.Trim()).Where(s => s.StartsWith("package:")).Select(s => s[8..]).Where(Storage.PackageValid).Order().ToArray();
+        allPackages = await service.GetAppsAsync(d.Serial, ct);
         Filter();
         Write($"Приложений пользователя: {allPackages.Length}. Выберите пакет для копирования.");
         Detail($"Приложений: {allPackages.Length}. Выберите приложение в списке слева.");
@@ -607,68 +550,16 @@ partial class BridgeForm : Form
         }
         Matches(allPackages.Length == 0 ? "Загрузите список приложений" : query.Length == 0 ? $"Приложений: {allPackages.Length}" : matches.Length == 0 ? "Ничего не найдено — измените запрос" : $"Найдено: {matches.Length} из {allPackages.Length}");
     }
-    /// <summary>Copies installed APK splits and accessible OBB files, then commits a verified manifest.</summary>
     async Task Export(CancellationToken ct)
     {
-        Stage("Подготовка резервной копии", "Определение версии и состава APK.");
         var d = Selected(source);
         var package = packages.SelectedItem as string ?? throw new Exception("Сначала выберите приложение из списка.");
-        var pathsText = await Adb(d.Serial, ct, "shell", "pm", "path", package);
-        var remoteApks = pathsText.Split('\n').Where(s => s.Trim().StartsWith("package:")).Select(s => s.Trim()[8..]).ToArray();
-        if (remoteApks.Length == 0 || remoteApks.Any(s => !Regex.IsMatch(s, @"^/[A-Za-z0-9_./~+=-]+\.apk$")))
-            throw new Exception("Не удалось получить безопасный список APK.");
-        var dump = await Adb(d.Serial, ct, "shell", "dumpsys", "package", package);
-        int Field(string name) => int.TryParse(Regex.Match(dump, name + @"=(\d+)").Groups[1].Value, out var n) ? n : 0;
-        var folder = Path.Combine(backupRoot, package + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..6]);
-        Directory.CreateDirectory(Path.Combine(folder, "apk"));
-        Write($"Копирование {package} → {folder}");
-        foreach (var path in remoteApks)
-        {
-            Write("APK: " + Path.GetFileName(path));
-            Write(await Pull(d.Serial, path, Path.Combine(folder, "apk", Path.GetFileName(path)), ct));
-        }
-        if (withObb.Checked)
-        {
-            var root = "/sdcard/Android/obb/" + package;
-            string found;
-            try
-            {
-                found = await Adb(d.Serial, ct, "shell", "find", root, "-type", "f");
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                found = "";
-                Write("OBB недоступны или отсутствуют: " + e.Message);
-            }
-            foreach (var path in found.Split('\n').Select(s => s.Trim()).Where(s => s.StartsWith(root + "/")))
-            {
-                if (!Regex.IsMatch(path, @"^/[A-Za-z0-9_./~+=-]+$"))
-                    throw new Exception("Необычное имя OBB-файла; копирование остановлено.");
-                var dest = Storage.Resolve(folder, "obb/" + path[(root.Length + 1)..]);
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                Write("Данные: " + Path.GetFileName(path));
-                Write(await Pull(d.Serial, path, dest, ct));
-            }
-        }
-        // Reject a package updated during export so the backup cannot mix APK versions.
-        if (pathsText != await Adb(d.Serial, ct, "shell", "pm", "path", package) || dump.Contains("versionCode=") && Regex.Match(dump, @"versionCode=\d+").Value != Regex.Match(await Adb(d.Serial, ct, "shell", "dumpsys", "package", package), @"versionCode=\d+").Value)
-            throw new Exception("Приложение обновилось во время копирования. Повторите экспорт.");
-        var apks = Directory.GetFiles(Path.Combine(folder, "apk"), "*.apk");
-        if (!apks.Any(p => Path.GetFileName(p) == "base.apk"))
-            throw new Exception("Нет base.apk в извлечённом пакете.");
-        Stage("Проверка целостности", "Вычисление SHA-256 скопированных файлов.");
-        var files = await Task.Run(() => Directory.GetFiles(folder, "*", SearchOption.AllDirectories).Select(p => { ct.ThrowIfCancellationRequested(); return new SavedFile(Path.GetRelativePath(folder, p).Replace('\\', '/'), Storage.Hash(p), new FileInfo(p).Length); }).ToArray(), ct);
-        var b = new Backup(package, Regex.Match(dump, @"versionName=([^\r\n]+)").Groups[1].Value.Trim(), Field("minSdk"), Field("targetSdk"), Storage.Abis(apks), files, DateTimeOffset.Now.ToString("O"));
-        if (b.MinSdk == 0)
-            throw new Exception("Не удалось определить minSdk.");
-        // Write the manifest last: an interrupted export must not appear ready for installation.
-        await File.WriteAllTextAsync(Path.Combine(folder, "backup.json"), JsonSerializer.Serialize(b, Storage.JsonOptions), ct);
-        backup = b;
-        backupFolder = folder;
+        var result = await service.ExportAsync(d.Serial, package, withObb.Checked, events, ct);
+        backup = result.Manifest;
+        backupFolder = result.Folder;
         ShowBackup();
         transferCompleted = true;
         Detail("Копия сохранена. Подключите получателя и нажмите «Установить».");
-        Write("Копия готова. Закрытые данные, сохранения и учётные записи не скопированы. APK сохранены с оригинальной подписью.");
     }
     async Task OpenBackup(CancellationToken ct)
     {
@@ -677,39 +568,32 @@ partial class BridgeForm : Form
             return;
         Stage("Проверка резервной копии", "Сверка размеров и SHA-256 файлов.");
         Write("Проверка файлов и SHA-256…");
-        var b = await Task.Run(() => Storage.Load(dialog.SelectedPath), ct);
+        var b = await service.OpenBackupAsync(dialog.SelectedPath, ct);
         backup = b;
         backupFolder = dialog.SelectedPath;
         ShowBackup();
         Detail("Копия проверена. Выберите получателя и нажмите «Установить».");
         Write("Целостность копии подтверждена.");
     }
+    async Task ImportPackage(CancellationToken ct)
+    {
+        using var dialog = new PackageImportDialog(importer, english, Icon);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+        var result = await service.ImportAsync(dialog.Apks, dialog.Obbs, events, ct);
+        backup = result.Manifest;
+        backupFolder = result.Folder;
+        ShowBackup();
+        Detail("Файлы импортированы. Выберите получателя и нажмите «Установить».");
+    }
     void ShowBackup() => Summary($"{backup!.Package}\r\nВерсия {backup.Version}  •  Файлов: {backup.Files.Length}  •  {backup.Files.Sum(f => f.Size) / 1048576.0:F0} МБ\r\nАрхитектура: {(backup.Abis.Length == 0 ? "без нативных библиотек" : string.Join(", ", backup.Abis))}");
-    /// <summary>Validates the backup and target, requests confirmation, installs APKs, then transfers OBB files.</summary>
     async Task Install(CancellationToken ct)
     {
         var d = Selected(target);
         var folder = backupFolder ?? throw new Exception("Сначала сохраните или откройте копию.");
-        Stage("Проверка перед установкой", "Целостность копии и совместимость устройства.");
-        Write("Проверка резервной копии…");
-        var b = await Task.Run(() => Storage.Load(folder), ct);
-        var sdk = int.Parse((await Adb(d.Serial, ct, "shell", "getprop", "ro.build.version.sdk")).Trim());
-        var abis = (await Adb(d.Serial, ct, "shell", "getprop", "ro.product.cpu.abilist")).Trim().Split(',');
-        var problem = Storage.Compatibility(b, sdk, abis);
-        if (problem != null)
-            throw new Exception(problem);
-        var page = (await Adb(d.Serial, ct, "shell", "getconf", "PAGE_SIZE")).Trim();
-        Write($"Устройство: API {sdk}, {string.Join(", ", abis)}, страницы {page} байт. Это предварительная проверка; запуск всё равно нужно проверить.");
-        var space = await Adb(d.Serial, ct, "shell", "df", "-k", "/data");
-        var spaceLine = space.Split('\n').LastOrDefault(s => Regex.IsMatch(s.Trim(), @"^/\S+\s+\d+\s+\d+\s+\d+"));
-        if (spaceLine != null)
-        {
-            var columns = Regex.Split(spaceLine.Trim(), @"\s+");
-            if (long.TryParse(columns[3], out var kb) && kb * 1024 < b.Files.Sum(f => f.Size) * 2)
-                throw new Exception("Недостаточно свободного места с запасом для установки.");
-        }
-        var existing = await Adb(d.Serial, ct, "shell", "pm", "list", "packages", b.Package);
-        var installed = existing.Split('\n').Any(s => s.Trim() == "package:" + b.Package);
+        var plan = await service.PrepareInstallAsync(d.Serial, folder, events, ct);
+        var b = plan.Backup.Manifest;
+        var installed = plan.ReplaceExisting;
         var warning = $"Установить {b.Package} v{b.Version} на {d.Model} ({d.Serial})?\n\n" +
             "Если такой пункт есть, включите:\nДля разработчиков → Установка через USB (Install via USB).\n\n" +
             "Разблокируйте устройство и подтвердите запрос установки на его экране.\n\n" +
@@ -717,42 +601,14 @@ partial class BridgeForm : Form
             "Закрытые данные и аккаунты не переносятся. Совместимость при запуске не гарантируется.";
         if (MessageBox.Show(this, T(warning), T("Установка"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
             throw new OperationCanceledException();
-        var args = new List<string> { "install-multiple" };
-        if (installed)
-            args.Add("-r");
-        args.AddRange(b.Files.Where(f => f.Path.StartsWith("apk/")).Select(f => Storage.Resolve(folder, f.Path)));
-        Write("Установка: держите устройство разблокированным и подтвердите запрос на его экране. Если в настройках есть «Установка через USB», включите её.");
-        Stage("Установка — проверьте экран устройства", "Подтвердите запрос установки. Android не сообщает процент этого этапа.");
-        Write(await Adb(d.Serial, ct, args.ToArray()));
-        Write("APK установлены.");
-        // OBB transfer follows installation; a later failure does not roll back the installed APK.
-        foreach (var f in b.Files.Where(f => f.Path.StartsWith("obb/")))
-        {
-            var relative = f.Path[4..];
-            if (!Regex.IsMatch(relative, @"^[A-Za-z0-9_./~+=-]+$"))
-                throw new Exception("Необычное имя OBB; APK установлены, данные не перенесены.");
-            var remote = "/sdcard/Android/obb/" + b.Package + "/" + relative;
-            Stage("Передача игровых данных", $"{Path.GetFileName(relative)}  •  {f.Size / 1048576.0:F1} МБ");
-            await Adb(d.Serial, ct, "shell", "mkdir", "-p", remote[..remote.LastIndexOf('/')]);
-            Write(await Adb(d.Serial, ct, "push", Storage.Resolve(folder, f.Path), remote));
-        }
-        backup = b;
+        backup = await service.InstallAsync(plan, events, ct);
         transferCompleted = true;
         Detail("Приложение установлено. Нажмите «Запустить приложение».");
-        Write("Перенос завершён. Нажмите «Запустить приложение» и проверьте работу на устройстве.");
     }
-    /// <summary>Resolves and starts the installed launcher activity; the user verifies behavior on the device.</summary>
     async Task Launch(CancellationToken ct)
     {
-        Stage("Запуск приложения", "Результат будет виден на экране устройства.");
         var d = Selected(target);
         var b = backup ?? throw new Exception("Откройте копию приложения.");
-        var resolved = await Adb(d.Serial, ct, "shell", "cmd", "package", "resolve-activity", "--brief", b.Package);
-        var component = resolved.Split('\n').Select(s => s.Trim()).LastOrDefault(s => s.StartsWith(b.Package + "/") && Regex.IsMatch(s, @"^[A-Za-z0-9_.$/]+$")) ?? throw new Exception("Нет запускаемой Activity. Проверьте, установлено ли приложение.");
-        var result = await Adb(d.Serial, ct, "shell", "am", "start", "-W", "-n", component);
-        Write(result);
-        if (result.Contains("Error:") || !result.Contains("Status: ok"))
-            throw new Exception("Android не подтвердил запуск приложения.");
-        Write("Android подтвердил запуск Activity. Проверьте изображение, звук и управление на экране устройства.");
+        await service.LaunchAsync(d.Serial, b.Package, events, ct);
     }
 }

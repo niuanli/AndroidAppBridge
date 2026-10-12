@@ -1,4 +1,4 @@
-namespace AppBridge;
+namespace AndroidAppBridge.Presentation;
 
 // Offline UI fixtures; these checks never connect to or modify Android devices.
 partial class BridgeForm
@@ -12,7 +12,7 @@ partial class BridgeForm
     }
     public void CheckLayout()
     {
-        foreach (var name in new[] { "BrandTitle", "RefreshButton", "CancelButton", "SaveButton", "InstallButton", "BackupSummary" })
+        foreach (var name in new[] { "BrandTitle", "RefreshButton", "CancelButton", "SaveButton", "InstallButton", "ImportButton", "BackupSummary" })
         {
             var c = Controls.Find(name, true).Single();
             var preferred = c.GetPreferredSize(new Size(c.Width, 0));
@@ -68,7 +68,7 @@ partial class BridgeForm
             throw new Exception("Search reset failed");
         SetLanguage(true, persist: false);
         PreviewBackup();
-        Application.DoEvents();
+        System.Windows.Forms.Application.DoEvents();
         if (backupLabel.Text.Contains("Версия") || !backupLabel.Text.Contains("Version") || !saveButton.Text.Contains("Back up"))
             throw new Exception("English translation failed");
         CheckLayout();
@@ -79,7 +79,7 @@ partial class BridgeForm
             bmp.Save(Path.Combine(AppContext.BaseDirectory, "ui-en.png"));
         }
         SetLanguage(false, persist: false);
-        Application.DoEvents();
+        System.Windows.Forms.Application.DoEvents();
         CheckLayout();
         ShowAbout(preview: true);
         if (!saveButton.Text.Contains("Сохранить") || !Localization.NoticeRu.Contains(Localization.Author) || !Localization.NoticeEn.Contains(Localization.Author))

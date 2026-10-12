@@ -17,6 +17,9 @@ platform-tools/
 *.obb
 backup.json
 language.txt
+package-inspection.json
+import-check-*/
+import-check-result.txt
 
 # Diagnostic captures and local asset notes
 phone_diagnostic.png

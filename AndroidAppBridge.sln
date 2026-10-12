@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{0288ACE7-5F04-4AB0-AA0E-A20D10914FE3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndroidAppBridge.Domain", "src\AndroidAppBridge.Domain\AndroidAppBridge.Domain.csproj", "{42C75359-A596-4C87-9E8E-6C7EE4920568}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndroidAppBridge.Application", "src\AndroidAppBridge.Application\AndroidAppBridge.Application.csproj", "{0337AEB8-9EFC-4DBA-88D8-1F4D65BE2773}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndroidAppBridge.Infrastructure", "src\AndroidAppBridge.Infrastructure\AndroidAppBridge.Infrastructure.csproj", "{7508502B-2702-4BCE-AE1D-43066956386A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndroidAppBridge.WinForms", "src\AndroidAppBridge.WinForms\AndroidAppBridge.WinForms.csproj", "{294D9B28-787A-4B1D-B0A3-E4041E33C677}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{73BC1097-8F04-415B-BDD9-0AD914038854}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndroidAppBridge.Tests", "tests\AndroidAppBridge.Tests\AndroidAppBridge.Tests.csproj", "{68BD18AC-8DC2-4BAF-9050-ACBE1E7023E9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{42C75359-A596-4C87-9E8E-6C7EE4920568}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42C75359-A596-4C87-9E8E-6C7EE4920568}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42C75359-A596-4C87-9E8E-6C7EE4920568}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42C75359-A596-4C87-9E8E-6C7EE4920568}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0337AEB8-9EFC-4DBA-88D8-1F4D65BE2773}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0337AEB8-9EFC-4DBA-88D8-1F4D65BE2773}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0337AEB8-9EFC-4DBA-88D8-1F4D65BE2773}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0337AEB8-9EFC-4DBA-88D8-1F4D65BE2773}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7508502B-2702-4BCE-AE1D-43066956386A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7508502B-2702-4BCE-AE1D-43066956386A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7508502B-2702-4BCE-AE1D-43066956386A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7508502B-2702-4BCE-AE1D-43066956386A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{294D9B28-787A-4B1D-B0A3-E4041E33C677}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{294D9B28-787A-4B1D-B0A3-E4041E33C677}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{294D9B28-787A-4B1D-B0A3-E4041E33C677}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{294D9B28-787A-4B1D-B0A3-E4041E33C677}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68BD18AC-8DC2-4BAF-9050-ACBE1E7023E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68BD18AC-8DC2-4BAF-9050-ACBE1E7023E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68BD18AC-8DC2-4BAF-9050-ACBE1E7023E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68BD18AC-8DC2-4BAF-9050-ACBE1E7023E9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{42C75359-A596-4C87-9E8E-6C7EE4920568} = {0288ACE7-5F04-4AB0-AA0E-A20D10914FE3}
+		{0337AEB8-9EFC-4DBA-88D8-1F4D65BE2773} = {0288ACE7-5F04-4AB0-AA0E-A20D10914FE3}
+		{7508502B-2702-4BCE-AE1D-43066956386A} = {0288ACE7-5F04-4AB0-AA0E-A20D10914FE3}
+		{294D9B28-787A-4B1D-B0A3-E4041E33C677} = {0288ACE7-5F04-4AB0-AA0E-A20D10914FE3}
+		{68BD18AC-8DC2-4BAF-9050-ACBE1E7023E9} = {73BC1097-8F04-415B-BDD9-0AD914038854}
+	EndGlobalSection
+EndGlobal

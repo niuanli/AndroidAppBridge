@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>AndroidAppBridge</AssemblyName>
+    <ApplicationIcon>../../assets/AndroidAppBridge.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AndroidAppBridge.Application/AndroidAppBridge.Application.csproj" />
+    <ProjectReference Include="../AndroidAppBridge.Infrastructure/AndroidAppBridge.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

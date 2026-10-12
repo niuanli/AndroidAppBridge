@@ -17,27 +17,27 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Restore
-        run: dotnet restore AppBridge.csproj
+        run: dotnet restore AndroidAppBridge.sln
       - name: Check formatting
-        run: dotnet format whitespace AppBridge.csproj --no-restore --verify-no-changes
+        run: dotnet format whitespace AndroidAppBridge.sln --no-restore --verify-no-changes
       - name: Build
-        run: dotnet build AppBridge.csproj -c Release --no-restore
-      - name: Offline checks
+        run: dotnet build AndroidAppBridge.sln -c Release --no-restore
+      - name: Unit tests
+        run: dotnet test tests/AndroidAppBridge.Tests/AndroidAppBridge.Tests.csproj -c Release --no-build --logger "trx;LogFileName=unit-tests.trx" --results-directory artifacts/test-results
+      - name: UI checks
         shell: pwsh
         run: |
-          $exe = Join-Path $PWD 'bin/Release/net8.0-windows/AndroidAppBridge.exe'
-          foreach ($argument in @('--self-test', '--ui-check')) {
-            $process = Start-Process -FilePath $exe -ArgumentList $argument -Wait -PassThru
-            if ($process.ExitCode -ne 0) { throw "$argument failed: $($process.ExitCode)" }
-          }
-          Get-Content bin/Release/net8.0-windows/self-test-result.txt
-          Get-Content bin/Release/net8.0-windows/ui-check-result.txt
+          $exe = Join-Path $PWD 'src/AndroidAppBridge.WinForms/bin/Release/net8.0-windows/AndroidAppBridge.exe'
+          $process = Start-Process -FilePath $exe -ArgumentList '--ui-check' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "UI checks failed: $($process.ExitCode)" }
+          Get-Content src/AndroidAppBridge.WinForms/bin/Release/net8.0-windows/ui-check-result.txt
       - name: Upload check results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: offline-check-results
           path: |
-            bin/Release/net8.0-windows/*result.txt
-            bin/Release/net8.0-windows/ui-*.png
-            bin/Release/net8.0-windows/about-*.png
+            artifacts/test-results/*.trx
+            src/AndroidAppBridge.WinForms/bin/Release/net8.0-windows/*result.txt
+            src/AndroidAppBridge.WinForms/bin/Release/net8.0-windows/ui-*.png
+            src/AndroidAppBridge.WinForms/bin/Release/net8.0-windows/about-*.png

@@ -1,4 +1,4 @@
-namespace AppBridge;
+namespace AndroidAppBridge.Presentation;
 
 /// <summary>Russian UI strings, English translations and the bilingual usage notice.</summary>
 static class Localization
@@ -8,6 +8,45 @@ static class Localization
     public const string NoticeEn = "AndroidAppBridge is intended for personal backups and the transfer of lawfully purchased or otherwise lawfully obtained applications between your own devices.\r\n\r\nThe software is not intended for piracy, license circumvention, or unlawful distribution of applications. All rights to transferred applications and their content belong to their respective rights holders.\r\n\r\nThe author does not encourage and condemns unlawful copying and distribution of other people's intellectual property. Please use this software solely for personal use and backups, in accordance with applicable laws and license terms.\r\n\r\nUsers are responsible for their own actions. The author accepts no responsibility for unlawful activities carried out using this software.\r\n\r\n© 2026 Aleksandr Nikitin aka Niuanli. All rights reserved.";
     static readonly Dictionary<string, string> Terms = new()
     {
+        ["APK изменился во время импорта. Выберите файлы заново."] = "APK changed during import. Select the files again.",
+        ["Некорректное имя пакета APK."] = "Invalid APK package name.",
+        ["Манифест APK повреждён."] = "Malformed APK manifest.",
+        ["В манифесте APK слишком много строк."] = "Too many manifest strings.",
+        ["Выберите хотя бы один APK."] = "Select at least one APK.",
+        ["APK или OBB выбран повторно."] = "Duplicate APK or OBB selection.",
+        ["Формат манифеста APK не поддерживается."] = "Unsupported APK manifest format.",
+        ["Некорректный блок манифеста APK."] = "Invalid manifest chunk.",
+        ["Выбранный файл отсутствует или пуст."] = "Selected file is missing or empty.",
+        ["В APK отсутствует AndroidManifest.xml."] = "APK has no AndroidManifest.xml.",
+        ["В APK отсутствует код версии."] = "Missing APK version code.",
+        ["Некорректная таблица строк манифеста APK."] = "Invalid manifest string pool.",
+        ["Значение SDK в манифесте APK не поддерживается."] = "Unsupported SDK value in APK manifest.",
+        ["Имя OBB должно соответствовать пакету APK: "] = "OBB filename must match the APK package: ",
+        ["Некорректный размер атрибута манифеста APK."] = "Invalid manifest attribute size.",
+        ["Манифест APK слишком большой."] = "APK manifest is too large.",
+        ["Выберите один основной APK и, при необходимости, его split APK."] = "Select exactly one base APK and its optional split APKs.",
+        ["Папка импорта уже существует."] = "Import destination already exists.",
+        ["Все APK должны иметь одинаковые пакет и код версии."] = "APK package names and version codes must match.",
+        ["Повреждена строка манифеста APK."] = "Unterminated manifest string.",
+        ["Некорректный индекс строки в манифесте APK."] = "Invalid manifest string index.",
+        ["Имя split APK не поддерживается."] = "Unsupported split APK name.",
+        ["Импорт APK + OBB…"] = "Import APK + OBB…",
+        ["Импорт APK + OBB"] = "Import APK + OBB",
+        ["Открыть копию…"] = "Open backup…",
+        ["Выберите основной APK и, при необходимости, split APK. OBB будут найдены рядом с APK или выбраны вручную."] = "Select the base APK and optional split APKs. OBB files will be located beside the APK or selected manually.",
+        ["Выбрать APK…"] = "Select APK…",
+        ["Выбрать OBB…"] = "Select OBB…",
+        ["OBB (необязательно)"] = "OBB (optional)",
+        ["Сначала выберите APK."] = "Select APK files first.",
+        ["Импортировать файлы"] = "Import files",
+        ["OBB рядом с APK не найден. Укажите файл или отмените выбор для установки только APK."] = "No adjacent OBB found. Select it manually or cancel the selection to import APK only.",
+        ["Выберите OBB или отмените выбор для установки только APK"] = "Select OBB files or cancel to import APK only",
+        ["Проверка локальных файлов"] = "Checking local files",
+        ["Определение пакета APK и проверка имён OBB."] = "Reading the APK package and checking OBB filenames.",
+        ["Импорт локальных файлов"] = "Importing local files",
+        ["Файлы импортированы. Выберите получателя и нажмите «Установить»."] = "Files imported. Select a target device and click Install.",
+        ["Импорт завершён:"] = "Import completed:",
+        ["Очистить список OBB"] = "Clear OBB selection",
         ["Включите отладку по USB и разрешите\r\nдоступ этому компьютеру на устройстве.\r\nВ настройках для разработчиков включите\r\n«Установка через USB» (Install via USB),\r\nесли такой пункт есть. Держите экран\r\nразблокированным и подтвердите запрос установки."] = "Enable USB debugging and authorize\r\nthis computer on your device.\r\nIn Developer options, enable Install via USB\r\nif this option is available. Keep the screen\r\nunlocked and approve the installation prompt.",
         ["Для личного бэкапа. Условия — в About it."] = "Personal backups only. See About it for terms.",
         ["Перенос Android-приложений через резервную копию на ПК."] = "Transfer Android apps using a backup on your PC.",

@@ -16,3 +16,8 @@ are preserved. The application's copyright notice does not apply to ADB.
 APK and OBB files are user data and are not included in the repository or source
 archive. Their original signatures, copyright and license terms remain with
 their rights holders.
+
+Development-only NuGet dependencies are NUnit, NUnit3TestAdapter and
+Microsoft.NET.Test.Sdk. They are restored for the test project and are not
+included in the application package. Their own license and notice metadata
+remain part of the respective NuGet packages.

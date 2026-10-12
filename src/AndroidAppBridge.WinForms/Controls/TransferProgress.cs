@@ -1,4 +1,4 @@
-namespace AppBridge;
+namespace AndroidAppBridge.Presentation;
 
 /// <summary>Draws determinate file progress or an animated waiting indicator independently of Windows themes.</summary>
 class TransferProgress : Control
