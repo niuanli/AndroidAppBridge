@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- Identify the base APK by its manifest instead of its filename, allowing export and installation of preinstalled APKs such as `Canva.apk` and `Moffice_196.apk`.
+- Add regression tests for original APK filenames and a split incorrectly named `base.apk`.
+
 ## 0.5.0
 
 - Separate Domain, Application, Infrastructure and WinForms projects, with dependencies assembled in one composition root.

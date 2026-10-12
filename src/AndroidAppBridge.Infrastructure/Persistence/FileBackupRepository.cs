@@ -21,8 +21,10 @@ public sealed class FileBackupRepository(string root) : IBackupRepository
     {
         ct.ThrowIfCancellationRequested();
         var apks = Directory.GetFiles(Path.Combine(folder, "apk"), "*.apk");
-        if (!apks.Any(p => Path.GetFileName(p) == "base.apk") || info.MinSdk < 1)
-            throw new InvalidDataException("Нет base.apk в извлечённом пакете.");
+        // Preinstalled apps often use a product name; the manifest identifies the base APK.
+        var captured = PackageSelectionPolicy.Validate(apks.Select(ApkManifest.Read).ToArray());
+        if (captured.Package != info.Package || captured.VersionCode != info.VersionCode)
+            throw new InvalidDataException("APK изменился во время импорта. Выберите файлы заново.");
         var files = Directory.GetFiles(folder, "*", SearchOption.AllDirectories).Select(p =>
         {
             ct.ThrowIfCancellationRequested();
@@ -30,7 +32,7 @@ public sealed class FileBackupRepository(string root) : IBackupRepository
             Storage.Resolve(folder, relative);
             return new SavedFile(relative, Storage.Hash(p, ct), new FileInfo(p).Length);
         }).ToArray();
-        var backup = new Backup(info.Package, info.Version, info.MinSdk, info.TargetSdk, Storage.Abis(apks), files, DateTimeOffset.Now.ToString("O"));
+        var backup = new Backup(captured.Package, captured.Version, captured.MinSdk, captured.TargetSdk, Storage.Abis(apks), files, DateTimeOffset.Now.ToString("O"));
         Storage.WriteManifest(folder, backup, ct);
         return backup;
     }, ct);

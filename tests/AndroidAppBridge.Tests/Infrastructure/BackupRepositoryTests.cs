@@ -5,6 +5,30 @@ namespace AndroidAppBridge.Tests.Infrastructure;
 [TestFixture]
 public class BackupRepositoryTests
 {
+    [TestCase("Canva.apk")]
+    [TestCase("Moffice_196.apk")]
+    public async Task PreinstalledBaseApkKeepsItsOriginalName(string name)
+    {
+        using var temp = new TempDirectory();
+        var apk = temp.Apk(name);
+        var repository = new FileBackupRepository(temp.Root);
+        var folder = repository.NewFolder("org.example.game", "device");
+        File.Copy(apk, repository.CreateDestination(folder, "apk/" + name));
+        await repository.SealAsync(folder, ApkManifest.Read(apk), CancellationToken.None);
+        var backup = await repository.LoadAsync(folder, CancellationToken.None);
+        Assert.That(backup.Files.Single().Path, Is.EqualTo("apk/" + name));
+    }
+    [Test]
+    public void SplitNamedBaseApkCannotBeSealedWithoutABaseManifest()
+    {
+        using var temp = new TempDirectory();
+        var apk = temp.Apk(split: "config.en");
+        var repository = new FileBackupRepository(temp.Root);
+        var folder = repository.NewFolder("org.example.game", "device");
+        File.Copy(apk, repository.CreateDestination(folder, "apk/base.apk"));
+        Assert.ThrowsAsync<InvalidDataException>(() => repository.SealAsync(folder, ApkManifest.Read(apk), CancellationToken.None));
+        Assert.That(File.Exists(Path.Combine(folder, "backup.json")), Is.False);
+    }
     [TestCase("../outside.apk")]
     [TestCase("apk/../../outside.apk")]
     [TestCase("C:\\outside.apk")]

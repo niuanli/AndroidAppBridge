@@ -69,8 +69,11 @@ public static class Storage
             if (!File.Exists(p) || new FileInfo(p).Length != f.Size || !Hash(p, ct).Equals(f.Sha256, StringComparison.OrdinalIgnoreCase))
                 throw new Exception($"Файл отсутствует или повреждён: {f.Path}");
         }
-        if (!b.Files.Any(f => f.Path == "apk/base.apk"))
-            throw new Exception("В копии нет base.apk.");
+        var apks = b.Files.Where(f => f.Path.StartsWith("apk/", StringComparison.Ordinal))
+            .Select(f => ApkManifest.Read(Resolve(folder, f.Path))).ToArray();
+        var captured = PackageSelectionPolicy.Validate(apks);
+        if (captured.Package != b.Package)
+            throw new InvalidDataException("Некорректное описание копии.");
         return b;
     }
     /// <summary>Commits a complete manifest atomically; interruption leaves no installable partial JSON.</summary>
